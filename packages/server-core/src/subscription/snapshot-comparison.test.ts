@@ -127,6 +127,16 @@ describe("Tailscale snapshot anchors", () => {
       .toMatchObject({ relation: "field-conflict" });
   });
 
+  it.each([".", "./", "./."])("keeps explicit current-directory state-dir %j distinct from the default", (dir) => {
+    expect(compareSubscriptionSnapshots(snapshot([ts({ "state-dir": dir })]), snapshot([ts()])))
+      .toMatchObject({ relation: "divergent", conflictingNodeCount: 0 });
+  });
+
+  it("treats explicit false ephemeral and udp like omission in comparisons", () => {
+    expect(compareSubscriptionSnapshots(snapshot([ts({ ephemeral: false, udp: false })]), snapshot([ts()])))
+      .toMatchObject({ relation: "equivalent" });
+  });
+
   it("treats an omitted control-url like the default Tailscale control server", () => {
     expect(compareSubscriptionSnapshots(snapshot([ts({ "control-url": "https://controlplane.tailscale.com" })]), snapshot([ts()])))
       .toMatchObject({ relation: "equivalent" });

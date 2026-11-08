@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import * as yaml from "js-yaml";
-import { parseClashYaml } from "../parser/clash-yaml";
 import {
   createTailscaleDraftContent,
   createTailscaleStateDir,
@@ -43,6 +42,12 @@ describe("Tailscale YAML source document", () => {
     ["an integer known string", "proxies:\n  - {name: ts, type: tailscale, auth-key: 123}\n"],
     ["proxy providers", "proxy-providers:\n  p: {type: http, url: 'https://local.subboost.test'}\nproxies:\n  - {name: ts, type: tailscale}\n"],
     ["an invalid explicit value", "proxies:\n  - {name: ts, type: tailscale, control-url: 'ftp://x'}\n"],
+    ["root scalar", "just-a-string\n"],
+    ["non-mapping proxy item", "proxies:\n  - 123\n"],
+    ["non-string mapping key", "proxies:\n  - {1: a, name: ts, type: tailscale}\n"],
+    ["duplicate mapping key", "proxies:\n  - {name: ts, type: tailscale, udp: true, udp: false}\n"],
+    ["non-scalar string field", "proxies:\n  - {name: ts, type: tailscale, hostname: [a]}\n"],
+    ["non-scalar boolean field", "proxies:\n  - {name: ts, type: tailscale, udp: [true]}\n"],
   ])("keeps %s in raw mode", (_label, content) => {
     expect(parseTailscaleSourceDocument(content).ok).toBe(false);
   });
@@ -88,10 +93,10 @@ version: "1.10"
   });
 
   it("maps the three boolean states to omission, true and false", () => {
-    const document = documentOf("- {name: ts, type: tailscale, accept-routes: false, exit-node-allow-lan-access: true}\n");
-    expect(document.initial).toMatchObject({ acceptRoutes: "false", exitNodeAllowLanAccess: "true", ephemeral: "default", udp: "default" });
+    const document = documentOf("- {name: ts, type: tailscale, accept-routes: false, exit-node-allow-lan-access: true, udp: ~, hostname: ~}\n");
+    expect(document.initial).toMatchObject({ acceptRoutes: "false", exitNodeAllowLanAccess: "true", ephemeral: "default", udp: "default", hostname: "" });
     const out = load(serializeTailscaleForm(document, { ...document.initial, udp: "false", ephemeral: "true", exitNodeAllowLanAccess: "default" }))[0];
-    expect(out).toEqual({ name: "ts", type: "tailscale", "accept-routes": false, udp: false, ephemeral: true });
+    expect(out).toEqual({ name: "ts", type: "tailscale", "accept-routes": false, udp: false, ephemeral: true, hostname: null });
   });
 
   it("removes keys for cleared optional inputs and quotes ambiguous strings", () => {
@@ -114,6 +119,13 @@ version: "1.10"
     const second = createTailscaleStateDir();
     expect(first).toMatch(/^tailscale\/subboost-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
     expect(first).not.toBe(second);
+    const originalRandomUUID = globalThis.crypto.randomUUID;
+    Object.defineProperty(globalThis.crypto, "randomUUID", { value: undefined, configurable: true });
+    try {
+      expect(createTailscaleStateDir()).toMatch(/^tailscale\/subboost-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+    } finally {
+      Object.defineProperty(globalThis.crypto, "randomUUID", { value: originalRandomUUID, configurable: true });
+    }
     const content = createTailscaleDraftContent(first);
     expect(load(content)).toEqual({ proxies: [{ name: "tailscale", type: "tailscale", "state-dir": first }] });
     const document = documentOf(content);
@@ -126,6 +138,8 @@ version: "1.10"
     expect(hasDuplicateTailscaleStateDir("", [undefined])).toBe(true);
     expect(hasDuplicateTailscaleStateDir("./tailscale", ["tailscale"])).toBe(true);
     expect(hasDuplicateTailscaleStateDir("tailscale/a/", ["./tailscale/a"])).toBe(true);
+    expect(hasDuplicateTailscaleStateDir(".", ["./"])).toBe(true);
+    expect(hasDuplicateTailscaleStateDir(".", ["", undefined, "tailscale"])).toBe(false);
     expect(hasDuplicateTailscaleStateDir("tailscale/a", ["tailscale/b", "/tailscale/a"])).toBe(false);
   });
 });

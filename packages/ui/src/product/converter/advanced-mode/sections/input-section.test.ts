@@ -675,6 +675,12 @@ describe("advanced mode InputSection", () => {
       mocks.captures.editor.onApplyContent(yamlSource.content);
       expect(mocks.store.setSources).not.toHaveBeenCalled();
       expect(mocks.store.parseSingleSource).not.toHaveBeenCalled();
+
+      mocks.store.sources = [urlSource, { ...yamlSource, parsing: true }];
+      renderSection({ 1: "y1" });
+      mocks.captures.editor.onApplyContent("- {name: while-parsing, type: tailscale}\n");
+      expect(mocks.store.setSources).toHaveBeenCalledTimes(1);
+      expect(mocks.store.parseSingleSource).not.toHaveBeenCalled();
     });
   });
 });

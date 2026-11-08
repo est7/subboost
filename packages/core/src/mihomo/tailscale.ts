@@ -62,7 +62,7 @@ export function tailscaleStateDirComparisonKey(value: unknown): string {
   if (!raw) return TAILSCALE_DEFAULT_STATE_DIR;
   if (raw.startsWith("/") || raw.startsWith("~") || /^[A-Za-z]:[\\/]/.test(raw) || raw.startsWith("\\\\")) return raw;
   const segments = raw.split("/").filter((segment) => segment !== "" && segment !== ".");
-  return segments.length ? segments.join("/") : TAILSCALE_DEFAULT_STATE_DIR;
+  return segments.length ? segments.join("/") : ".";
 }
 
 /**

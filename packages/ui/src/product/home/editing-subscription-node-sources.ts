@@ -2,7 +2,7 @@ import type { SubscriptionSource } from "@subboost/ui/store/config-store";
 import { parseSubscription } from "@subboost/core/parser";
 import type { ParsedNode } from "@subboost/core/types/node";
 import { buildNodeEndpointKey } from "@subboost/core/node-endpoint";
-import { buildNodeContentKey } from "@subboost/core/node-identity";
+import { buildScopedNodeIdentityKey } from "@subboost/core/node-identity";
 import { stripImportedNodeControlFields } from "@subboost/core/subscription/imported-node-controls";
 
 const ORIGIN_NAME_KEY = "_originName";
@@ -61,8 +61,8 @@ export function ensureNodesHaveValidSourceIds(
   const urlSources = sources.filter((s) => s.type === "url");
 
   const keyOf = (node: ParsedNode) => isTailscaleNode(node)
-    // Endpointless: compare admitted content on both sides, never the bare type.
-    ? `tailscale\u0000${buildNodeContentKey(stripImportedNodeControlFields(node))}`
+    // Endpointless: compare origin name + admitted content on both sides, never the bare type.
+    ? buildScopedNodeIdentityKey(getNodeOriginName(node), stripImportedNodeControlFields(node))
     : `${getNodeOriginName(node)}-${buildNodeEndpointKey(node)}`;
   const keyToIndices = new Map<string, number[]>();
   nodes.forEach((node, idx) => {

@@ -35,6 +35,13 @@ describe("Tailscale source ownership reconstruction", () => {
     expect(result.map(getNodeSourceIds)).toEqual([["a"], ["b"]]);
   });
 
+  it("keeps differently named nodes with identical options attached to their own source", () => {
+    const a = "- {name: ts-a, type: tailscale, state-dir: tailscale/shared}";
+    const b = "- {name: ts-b, type: tailscale, state-dir: tailscale/shared}";
+    const result = ensureNodesHaveValidSourceIds([...storedNodesFrom(a), ...storedNodesFrom(b)], [yamlSource("a", a), yamlSource("b", b)]);
+    expect(result.map(getNodeSourceIds)).toEqual([["a"], ["b"]]);
+  });
+
   it("matches source YAML with imported dialer controls against the stripped stored node", () => {
     const content = "- {name: ts, type: tailscale, auth-key: tskey-auth-first, dialer-proxy: Relay}";
     const stored = storedNodesFrom(content);
